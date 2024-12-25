@@ -1,4 +1,4 @@
-FROM golang:1.22-bookworm as base
+FROM golang:1.23-bookworm as base
 FROM gcr.io/distroless/static-debian12 as prod
 
 ## Dev Runner, local files are volume mounted
