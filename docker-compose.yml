@@ -68,7 +68,7 @@ services:
             GOOSE_DBSTRING: postgres://${DB_USER}:${DB_ROOT_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable
             GOOSE_MIGRATION_DIR: /migrations
         volumes:
-            - ./db/migrations:/migrations
+            - ./internal/db/migrations:/migrations
         # https://github.com/pressly/goose?tab=readme-ov-file#usage
         entrypoint: ['goose', '-s', '-timeout', '5m']
         networks:

@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+        "renesaarsoo.sql-formatter-vsc",
+        "golang.go",
+        "usernamehw.errorlens",
+        "aaron-bond.better-comments",
+        "maxnatchanon.go-struct-tag-autogen"
+    ]
+}

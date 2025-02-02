@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/tls"
+	"log"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -20,9 +22,20 @@ type Server struct {
 }
 
 func serverConfig() Server {
-	var server Server
+	var s Server
 
-	envconfig.MustProcess("", &server)
+	envconfig.MustProcess("", &s)
 
-	return server
+	return s
+}
+
+func (s Server) TLSOptions() *tls.Config {
+	serverTLSCert, err := tls.LoadX509KeyPair(s.TLSCertPath, s.TLSKeyPath)
+	if err != nil {
+		log.Fatalf("Error loading certificate and key file: %v", err)
+	}
+
+	return &tls.Config{
+		Certificates: []tls.Certificate{serverTLSCert},
+	}
 }

@@ -15,8 +15,7 @@ var (
 	conf *Config
 )
 
-func New() *Config {
-
+func NewConfig() *Config {
 	once.Do(func() {
 		conf = &Config{
 			Server:   serverConfig(),
@@ -27,6 +26,5 @@ func New() *Config {
 		}
 	},
 	)
-
 	return conf
 }

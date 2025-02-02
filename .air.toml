@@ -6,14 +6,14 @@ tmp_dir = "tmp"
 # fsnotify is not working on compose - WSL2 (windows)
 poll = true
 
-cmd = "go build -o ./tmp/main  cmd/main.go"
+cmd = "go build -o ./tmp/main  cmd/api/main.go"
 bin = "./tmp/main"
 
 full_bin = "./tmp/main"
 log = "air_errors.log"
 
 include_ext = ["go", "yml", "env"]
-exclude_dir = ["tmp"]
+exclude_dir = ["tmp", "docs"]
 delay = 500 # ms
 stop_on_error = true
 kill_delay = 500 # ms

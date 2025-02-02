@@ -2,5 +2,18 @@
     "gopls": { "ui.semanticTokens": true },
     "[go]": {
         "editor.defaultFormatter": "golang.go"
+    },
+    "SQL-Formatter-VSCode.dialect": "postgresql",
+    "SQL-Formatter-VSCode.dataTypeCase": "upper",
+    "SQL-Formatter-VSCode.functionCase": "upper",
+    "SQL-Formatter-VSCode.identifierCase": "preserve",
+    "SQL-Formatter-VSCode.keywordCase": "upper",
+    "SQL-Formatter-VSCode.paramTypes": {
+        "named": ["@", ":"]
+    },
+    "goStructTagAutogen.tagSuggestion": {
+        "json": {
+            "cases": ["snake"]
+        }
     }
 }

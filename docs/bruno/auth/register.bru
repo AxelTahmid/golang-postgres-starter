@@ -7,20 +7,15 @@ meta {
 post {
   url: {{base_url}}/api/v1/auth/register
   body: json
-  auth: bearer
-}
-
-headers {
-  ~Content-Type: application/json
-}
-
-auth:bearer {
-  token: {{token}}
+  auth: none
 }
 
 body:json {
   {
-      "email" : "axel.tahmid@gmail.com",
-      "password" : "axel1234"
+    "email": "josh@gmail.com",
+    "password": "axel1234",
+    "role": "customer",
+    "first_name" : "Josh",
+    "last_name" : "B."
   }
 }
