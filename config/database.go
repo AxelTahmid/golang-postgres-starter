@@ -2,8 +2,6 @@ package config
 
 import (
 	"time"
-
-	"github.com/kelseyhightower/envconfig"
 )
 
 type Database struct {
@@ -13,14 +11,9 @@ type Database struct {
 	HealthCheckPeriod time.Duration `split_words:"true" default:"60s"`
 	PoolMax           int32         `split_words:"true" default:"50"`
 	PoolMin           int32         `split_words:"true" default:"0"`
-	Url               string        `required:"true"`
-	SslMode           string        `default:"disable"`
+	Url               string        `                                            required:"true"`
+	RootUrl           string        `split_words:"true"                          required:"true"`
+	RiverUrl          string        `split_words:"true"                          required:"true"`
+	SslMode           string        `                   default:"disable"`
 	TimeZone          string        `split_words:"true" default:"America/Regina"`
-}
-
-func dbConfig() Database {
-	var d Database
-	envconfig.MustProcess("DB", &d)
-
-	return d
 }

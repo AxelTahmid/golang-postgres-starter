@@ -7,7 +7,6 @@ import (
 	"github.com/AxelTahmid/tinker/internal/db"
 	"github.com/AxelTahmid/tinker/internal/db/sqlc"
 	"github.com/AxelTahmid/tinker/internal/jwt"
-	"github.com/AxelTahmid/tinker/internal/middleware"
 	"github.com/AxelTahmid/tinker/internal/utils/argon2id"
 )
 
@@ -41,51 +40,9 @@ func (s *service) Register(ctx context.Context, user *RegisterRequest) error {
 
 	user.Password = hashedPassword
 
-	tenantID := ctx.Value(middleware.TenantID)
-	if tenantID == nil {
-		return errors.New("customer register attempted with unknown tenant")
-	}
-
 	if err = s.repo.CreateCustomer(ctx, user); err != nil {
 		return db.WrapDBError(ctx, err)
 	}
-
-	return nil
-}
-
-func (s *service) RegisterTenant(ctx context.Context, user *RegisterRequest) error {
-	hashedPassword, err := s.argon.HashPassword(user.Password)
-	if err != nil {
-		return err
-	}
-
-	user.Password = hashedPassword
-
-	_, err = s.repo.CreateTenant(ctx, user)
-	if err != nil {
-		return db.WrapDBError(ctx, err)
-	}
-
-	// TODO: do this after onboarding step.
-	// queue, queueErr := db.GetRiverClient()
-	// if queueErr == nil {
-	// 	hCustomer := helcim.Customer{
-	// 		ID:           int(tenantID),
-	// 		CustomerCode: "TRT00" + strconv.Itoa(int(tenantID)),
-	// 		BusinessName: user.CompanyName,
-	// 		CellPhone:    user.Phone,
-	// 	}
-
-	// 	_, _ = queue.Insert(ctx, db.HelcimCustomerArgs{
-	// 		Customer: hCustomer,
-	// 		Action:   db.ActionCustomerCreate,
-	// 		APIToken: "admin",
-	// 	}, &river.InsertOpts{
-	// 		MaxAttempts: 3,
-	// 		Queue:       db.QueueHelcim,
-	// 		Tags:        []string{"Tenant", "Registration"},
-	// 	})
-	// }
 
 	return nil
 }

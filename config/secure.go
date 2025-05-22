@@ -1,7 +1,6 @@
 package config
 
 import (
-	"github.com/kelseyhightower/envconfig"
 	"github.com/unrolled/secure"
 )
 
@@ -19,13 +18,6 @@ type Secure struct {
 	FrameDeny             bool              `split_words:"true" default:"true"`
 	ContentTypeNosniff    bool              `split_words:"true" default:"true"`
 	BrowserXssFilter      bool              `split_words:"true" default:"true"`
-}
-
-func secureConfig() Secure {
-	var s Secure
-	envconfig.MustProcess("SECURE", &s)
-
-	return s
 }
 
 func (s Secure) SecureOptions() *secure.Secure {

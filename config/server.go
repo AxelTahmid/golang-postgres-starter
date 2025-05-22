@@ -4,29 +4,20 @@ import (
 	"crypto/tls"
 	"log"
 	"time"
-
-	"github.com/kelseyhightower/envconfig"
 )
 
 type Server struct {
 	AppEnv       string        `default:"development"`
-	Name         string        `default:"go-api"`
+	Name         string        `default:"kleos"`
 	Host         string        `default:"0.0.0.0"`
+	Domain       string        `                      required:"true"`
 	Port         int           `default:"3000"`
 	Logging      bool          `default:"true"`
-	IdleTimeout  time.Duration `split_words:"true" default:"60s"`
-	ReadTimeout  time.Duration `split_words:"true" default:"5s"`
-	WriteTimeout time.Duration `split_words:"true" default:"10s"`
-	TLSCertPath  string        `split_words:"true" required:"true"`
-	TLSKeyPath   string        `split_words:"true" required:"true"`
-}
-
-func serverConfig() Server {
-	var s Server
-
-	envconfig.MustProcess("", &s)
-
-	return s
+	IdleTimeout  time.Duration `default:"60s"                         split_words:"true"`
+	ReadTimeout  time.Duration `default:"30s"                         split_words:"true"`
+	WriteTimeout time.Duration `default:"30s"                         split_words:"true"`
+	TLSCertPath  string        `                      required:"true" split_words:"true"`
+	TLSKeyPath   string        `                      required:"true" split_words:"true"`
 }
 
 func (s Server) TLSOptions() *tls.Config {
