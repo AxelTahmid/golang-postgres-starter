@@ -1,8 +1,10 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    schema: "./internal/db/migrations/*.sql"
-    queries: "./internal/db/query/*.sql"
+    schema: "internal/db/migrations"
+    queries: "internal/db/queries"
+    # database:
+    #   uri: "<db_uri>"
     gen:
       go:
         package: "sqlc"
@@ -11,6 +13,6 @@ sql:
         emit_json_tags: true
         json_tags_case_style: "snake"
         emit_pointers_for_null_types: true
-        # override_type:
-        #   - db_type: "jsonb"
-        #     go_type: "github.com/jackc/pgx/v5/pgtype.JSONBCodec"
+        overrides:
+          - db_type: "jsonb"
+            go_type: "encoding/json.RawMessage"

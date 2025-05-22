@@ -1,8 +1,25 @@
 {
     "gopls": { "ui.semanticTokens": true },
     "[go]": {
-        "editor.defaultFormatter": "golang.go"
+        "editor.defaultFormatter": "golang.go",
+        "editor.formatOnSave": true
     },
+    "editor.inlayHints.fontSize": 14,
+    "go.inlayHints.compositeLiteralFields": true,
+    "go.inlayHints.compositeLiteralTypes": true,
+    "go.inlayHints.functionTypeParameters": true,
+    "go.inlayHints.parameterNames": true,
+    "go.inlayHints.rangeVariableTypes": true,
+    "go.inlayHints.constantValues": true,
+
+    "go.lintTool": "golangci-lint-v2",
+    "go.lintOnSave": "package",
+    "go.formatTool": "custom",
+    "go.alternateTools": {
+        "customFormatter": "golangci-lint"
+    },
+    "go.formatFlags": ["fmt", "--stdin"],
+
     "SQL-Formatter-VSCode.dialect": "postgresql",
     "SQL-Formatter-VSCode.dataTypeCase": "upper",
     "SQL-Formatter-VSCode.functionCase": "upper",

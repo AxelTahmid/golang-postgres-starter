@@ -19,11 +19,11 @@ services:
             database:
                 condition: service_healthy
         networks:
-            - appnetwork
+            - tinker_network
         restart: always
 
     database:
-        image: 'postgres:17.2-bookworm'
+        image: 'postgres:17.5-bookworm'
         container_name: db
         env_file: '.env'
         environment:
@@ -32,8 +32,8 @@ services:
             POSTGRES_USER: ${DB_USER}
         ports:
             - 5432:5432
-        expose:
-            - '5432'
+        # expose:
+        #     - '5432'
         volumes:
             - 'db_data:/var/lib/postgresql/data'
         restart: on-failure
@@ -52,8 +52,34 @@ services:
             timeout: 3s
             retries: 3
         networks:
-            - appnetwork
+            - tinker_network
 
+    queue:
+        image: 'ghcr.io/riverqueue/riverui:master'
+        container_name: queue
+        env_file: '.env'
+        environment:
+            DATABASE_URL: ${DB_RIVER_URL}
+            RIVER_BASIC_AUTH_USER: ${RIVER_UI_USER}
+            RIVER_BASIC_AUTH_PASS: ${RIVER_UI_PASS}
+        ports:
+            - 8000:3000
+        restart: on-failure
+        networks:
+            - tinker_network
+
+    # https://github.com/swagger-api/swagger-ui/blob/HEAD/docs/usage/installation.md
+    swagger:
+        image: 'docker.swagger.io/swaggerapi/swagger-ui'
+        container_name: swagger
+        profiles: ['tools']
+        environment:
+            SWAGGER_JSON_URL: 'https://localhost:3000/openapi.json'
+        ports:
+            - 3002:8080
+        restart: on-failure
+        networks:
+            - tinker_network
     # postgres migration tool
     goose:
         container_name: goose-runner
@@ -65,14 +91,34 @@ services:
             dockerfile: Dockerfile
         environment:
             GOOSE_DRIVER: postgres
-            GOOSE_DBSTRING: postgres://${DB_USER}:${DB_ROOT_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable
+            # GOOSE_DBSTRING: postgres://${DB_USER}:${DB_ROOT_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable
+            GOOSE_DBSTRING: $DB_ROOT_URL
             GOOSE_MIGRATION_DIR: /migrations
+            NO_COLOR: false
         volumes:
             - ./internal/db/migrations:/migrations
         # https://github.com/pressly/goose?tab=readme-ov-file#usage
         entrypoint: ['goose', '-s', '-timeout', '5m']
         networks:
-            - appnetwork
+            - tinker_network
+        depends_on:
+            database:
+                condition: service_healthy
+        restart: never
+
+    # river migration tool
+    river:
+        container_name: river-runner
+        profiles: ['tools']
+        env_file: .env
+        build:
+            context: .
+            target: river
+            dockerfile: Dockerfile
+        entrypoint:
+            ['river', '--line', 'main', '--database-url', '$DB_RIVER_URL']
+        networks:
+            - tinker_network
         depends_on:
             database:
                 condition: service_healthy
@@ -82,4 +128,4 @@ volumes:
     db_data:
 
 networks:
-    appnetwork:
+    tinker_network:
