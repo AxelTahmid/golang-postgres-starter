@@ -24,8 +24,6 @@ type Service interface {
 	IssueTokenPair(
 		userID int64,
 		email, role string,
-		tenantID *int32,
-		customerID *int64,
 	) (*Tokens, error)
 }
 

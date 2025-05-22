@@ -15,20 +15,6 @@ func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	req, err := httpx.ParseRequest[*RegisterRequest](w, r)
-	if err != nil {
-		return
-	}
-
-	if err = h.svc.Register(r.Context(), req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	httpx.Success(w, http.StatusCreated, "User registered successfully", nil, nil)
-}
-
 func (h *Handler) RegisterAdmin(w http.ResponseWriter, r *http.Request) {
 	req, err := httpx.ParseRequest[*RegisterRequest](w, r)
 	if err != nil {

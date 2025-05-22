@@ -10,8 +10,8 @@ CREATE TABLE auth_users (
     phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
     password TEXT NOT NULL,
     role role_type NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT current_timestamp,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Unique indexes for tenant and customer rows:

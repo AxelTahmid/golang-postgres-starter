@@ -11,10 +11,9 @@ import (
 )
 
 type Service interface {
-	Register(ctx context.Context, user *RegisterRequest) error
 	RegisterAdmin(ctx context.Context, user *RegisterRequest) error
 	Login(ctx context.Context, credentials *LoginRequest) (*jwt.Tokens, error)
-	Me(ctx context.Context, email string) (sqlc.GetUserDetailsRow, error)
+	Me(ctx context.Context, email string) (sqlc.AuthUser, error)
 	Refresh(ctx context.Context, refreshToken string) (*jwt.Tokens, error)
 }
 
@@ -30,21 +29,6 @@ func NewService(repo Repository) Service {
 		token: jwt.GetService(),
 		argon: argon2id.DefaultConfig(),
 	}
-}
-
-func (s *service) Register(ctx context.Context, user *RegisterRequest) error {
-	hashedPassword, err := s.argon.HashPassword(user.Password)
-	if err != nil {
-		return err
-	}
-
-	user.Password = hashedPassword
-
-	if err = s.repo.CreateCustomer(ctx, user); err != nil {
-		return db.WrapDBError(ctx, err)
-	}
-
-	return nil
 }
 
 func (s *service) RegisterAdmin(ctx context.Context, user *RegisterRequest) error {
@@ -81,15 +65,13 @@ func (s *service) Login(ctx context.Context, credentials *LoginRequest) (*jwt.To
 		user.ID,
 		user.Email,
 		string(user.Role),
-		user.TenantID,
-		user.CustomerID,
 	)
 }
 
-func (s *service) Me(ctx context.Context, identity string) (sqlc.GetUserDetailsRow, error) {
+func (s *service) Me(ctx context.Context, identity string) (sqlc.AuthUser, error) {
 	user, err := s.repo.GetUserDetails(ctx, identity)
 	if err != nil {
-		return sqlc.GetUserDetailsRow{}, db.WrapDBError(ctx, err)
+		return sqlc.AuthUser{}, db.WrapDBError(ctx, err)
 	}
 
 	return user, nil
@@ -106,7 +88,5 @@ func (s *service) Refresh(ctx context.Context, identity string) (*jwt.Tokens, er
 		user.ID,
 		user.Email,
 		string(user.Role),
-		user.TenantID,
-		user.CustomerID,
 	)
 }

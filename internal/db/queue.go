@@ -57,9 +57,7 @@ func NewQueue(ctx context.Context, pool *pgxpool.Pool, conf *config.Server, logg
 
 	// Define queue configurations.
 	queueConfig := map[string]river.QueueConfig{
-		jobs.QueueDefault:  {MaxWorkers: jobs.MaxDefaultWorkers},
-		jobs.QueueHelcim:   {MaxWorkers: jobs.MaxHelcimWorkers},
-		jobs.QueuePayments: {MaxWorkers: jobs.MaxPaymentsWorkers},
+		jobs.QueueDefault: {MaxWorkers: jobs.MaxDefaultWorkers},
 	}
 
 	// Create the client.

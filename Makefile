@@ -9,7 +9,7 @@
 # GOOSE and RIVER doesnt provide docker images. SQLC does.
 GOOSE := docker compose --profile tools run --rm goose
 RIVER := docker compose --profile tools run --rm river
-SQLC := docker run --rm --network tinker-api_tinker_network -v $(PWD):/src -w /src --user $(shell id -u):$(shell id -g) sqlc/sqlc
+SQLC := docker run --rm --network tinker_tinker_network -v $(PWD):/src -w /src --user $(shell id -u):$(shell id -g) sqlc/sqlc
 # Golint should be installed in machine for IDE integration. Depreciated.
 # GOLINT := docker run -t --rm -v $(PWD):/app -w /app golangci/golangci-lint:latest-alpine golangci-lint
 

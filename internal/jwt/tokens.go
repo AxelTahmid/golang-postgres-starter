@@ -21,9 +21,7 @@ var (
 type Claims struct {
 	*jwt.RegisteredClaims
 	// Application-specific claims
-	Role       string `json:"role,omitempty"`
-	TenantID   int32  `json:"tenant_id,omitzero"`
-	CustomerID int64  `json:"customer_id,omitzero"`
+	Role string `json:"role,omitempty"`
 }
 
 // Tokens holds the generated access and refresh tokens.
@@ -50,8 +48,6 @@ func (j *jwtService) createToken(claims *Claims) (string, error) {
 func (j *jwtService) IssueTokenPair(
 	userID int64,
 	email, role string,
-	tenantID *int32,
-	customerID *int64,
 ) (*Tokens, error) {
 	if userID == 0 {
 		return nil, fmt.Errorf("%w: user ID cannot be zero", errInvalidClaims)
@@ -66,16 +62,6 @@ func (j *jwtService) IssueTokenPair(
 	userIDStr := strconv.FormatInt(userID, 10)
 	now := time.Now()
 
-	if tenantID == nil {
-		defaultTenantID := int32(0)
-		tenantID = &defaultTenantID
-	}
-
-	if customerID == nil {
-		defaultCustomerID := int64(0)
-		customerID = &defaultCustomerID
-	}
-
 	accessClaims := &Claims{
 		RegisteredClaims: &jwt.RegisteredClaims{
 			ID:        userIDStr,
@@ -85,9 +71,7 @@ func (j *jwtService) IssueTokenPair(
 			NotBefore: jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(j.accessTime)),
 		},
-		Role:       role,
-		TenantID:   *tenantID,
-		CustomerID: *customerID,
+		Role: role,
 	}
 
 	accessToken, err := j.createToken(accessClaims)
