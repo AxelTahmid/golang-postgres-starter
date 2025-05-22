@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "name": "Kleos",
+  "name": "github.com/AxelTahmid/tinker",
   "type": "collection",
   "ignore": [
     "node_modules",

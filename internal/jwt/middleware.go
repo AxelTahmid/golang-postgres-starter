@@ -1,88 +1,99 @@
 package jwt
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 
-	"github.com/AxelTahmid/tinker/internal/utils/message"
-	"github.com/AxelTahmid/tinker/internal/utils/respond"
+	"github.com/AxelTahmid/tinker/internal/httpx"
 )
+
+type authCtxKey string
 
 const (
-	authHeaderKey = "Authorization"
-	bearerPrefix  = "Bearer"
+	AuthHeaderKey            = "Authorization"
+	BearerPrefix             = "Bearer"
+	AuthCtxKey    authCtxKey = "ctx:auth-user"
 )
 
-type claimsValidator func(claims *CustomClaims) error
-type tokenParser func(string) (*CustomClaims, error)
+var (
+	errInvalidAuthHeader     = errors.New("authorization header format must be 'Bearer {token}'")
+	errInsufficientPrivilege = errors.New("insufficient privileges")
+)
 
-// Parse and validate Authorization header
-func parseAuthorizationHeader(r *http.Request) (string, error) {
-	authHeader := r.Header.Get(authHeaderKey)
-	if authHeader == "" {
-		return "", errors.New(message.ErrUnauthorized)
-	}
+type claimsValidator func(claims *Claims) error
+type tokenParser func(string) (*Claims, error)
 
-	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || parts[0] != bearerPrefix {
-		return "", errors.New(message.ErrBadTokenFormat)
-	}
-
-	return parts[1], nil
-}
-
-// Common middleware logic
-func withAuth(next http.Handler, parseToken tokenParser, validate claimsValidator) http.Handler {
+// AuthMiddleware - common middleware logic.
+func AuthMiddleware(next http.Handler, parseToken tokenParser, validate claimsValidator) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
 
-		token, err := parseAuthorizationHeader(r)
-		if err != nil {
-			respond.Error(w, http.StatusUnauthorized, err.Error())
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			httpx.Error(w, http.StatusUnauthorized, errInvalidAuthHeader.Error())
 			return
 		}
 
+		// slog.Info("Header -===>", "authheader", authHeader, "bearer", !strings.HasPrefix(authHeader, "Bearer "))
+
+		token := strings.TrimPrefix(authHeader, "Bearer ")
 		claims, err := parseToken(token)
 		if err != nil {
-			respond.Error(w, http.StatusUnauthorized, err.Error())
+			httpx.Error(w, http.StatusUnauthorized, err.Error())
 			return
 		}
 
 		if validate != nil {
-			if err := validate(claims); err != nil {
-				respond.Error(w, http.StatusUnauthorized, err.Error())
+			if err = validate(claims); err != nil {
+				httpx.Error(w, http.StatusUnauthorized, errInsufficientPrivilege.Error())
 				return
 			}
 		}
 
-		r = r.WithContext(AddClaimsToContext(r.Context(), claims))
+		r = r.WithContext(context.WithValue(r.Context(), AuthCtxKey, claims))
 		next.ServeHTTP(w, r)
 	})
 }
+func isAdmin(claims *Claims) error {
+	if claims.Role != "admin" {
+		return errInsufficientPrivilege
+	}
+	return nil
+}
 
-// Middleware implementations
+func isTenant(claims *Claims) error {
+	if claims.Role != "tenant" {
+		return errInsufficientPrivilege
+	}
+	return nil
+}
+
+func isTenantOrAdmin(claims *Claims) error {
+	if claims.Role != "admin" && claims.Role != "tenant" {
+		return errInsufficientPrivilege
+	}
+	return nil
+}
+
+// Middleware implementations.
+
 func Authenticated(next http.Handler) http.Handler {
-	return withAuth(next, Service.ParseAccessToken, nil)
+	return AuthMiddleware(next, jwtSvc.ParseAccessToken, nil)
 }
 
 func AdminOnly(next http.Handler) http.Handler {
-	return withAuth(next, Service.ParseAccessToken, func(claims *CustomClaims) error {
-		if claims.Role != "admin" {
-			return errors.New(message.ErrUnauthorized)
-		}
-		return nil
-	})
+	return AuthMiddleware(next, jwtSvc.ParseAccessToken, isAdmin)
+}
+
+func TenantOnly(next http.Handler) http.Handler {
+	return AuthMiddleware(next, jwtSvc.ParseAccessToken, isTenant)
 }
 
 func TenantOrAdminOnly(next http.Handler) http.Handler {
-	return withAuth(next, Service.ParseAccessToken, func(claims *CustomClaims) error {
-		if claims.Role != "admin" && claims.Role != "tenant" {
-			return errors.New(message.ErrUnauthorized)
-		}
-		return nil
-	})
+	return AuthMiddleware(next, jwtSvc.ParseAccessToken, isTenantOrAdmin)
 }
 
 func RefreshFlow(next http.Handler) http.Handler {
-	return withAuth(next, Service.ParseRefreshToken, nil)
+	return AuthMiddleware(next, jwtSvc.ParseRefreshToken, nil)
 }

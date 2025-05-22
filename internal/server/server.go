@@ -20,12 +20,11 @@ import (
 type Server struct {
 	conf   *config.Config
 	router *chi.Mux
-	db     db.Postgres
+	db     db.DB
 	log    *slog.Logger
 }
 
-func NewServer(c *config.Config, db db.Postgres, l *slog.Logger) *Server {
-
+func NewServer(c *config.Config, db db.DB, l *slog.Logger) *Server {
 	server := &Server{
 		conf:   c,
 		router: chi.NewRouter(),
@@ -41,27 +40,30 @@ func NewServer(c *config.Config, db db.Postgres, l *slog.Logger) *Server {
 func (s *Server) Start(ctx context.Context) {
 	loggerLevel := slog.LevelDebug
 
-	if s.conf.AppEnv == "production" {
+	if s.conf.Server.AppEnv == "production" {
 		loggerLevel = slog.LevelWarn
 	}
 
 	logger := slog.NewLogLogger(slog.NewJSONHandler(os.Stdout, nil), loggerLevel)
 
 	server := http.Server{
-		Addr:         fmt.Sprintf(":%d", s.conf.Port),
+		Addr:         fmt.Sprintf(":%d", s.conf.Server.Port),
 		Handler:      s.router,
-		TLSConfig:    s.conf.TLSOptions(),
-		IdleTimeout:  s.conf.IdleTimeout,
-		ReadTimeout:  s.conf.ReadTimeout,
-		WriteTimeout: s.conf.WriteTimeout,
+		TLSConfig:    s.conf.Server.TLSOptions(),
+		IdleTimeout:  s.conf.Server.IdleTimeout,
+		ReadTimeout:  s.conf.Server.ReadTimeout,
+		WriteTimeout: s.conf.Server.WriteTimeout,
 		ErrorLog:     logger,
 	}
 
 	shutdownComplete := handleShutdown(func() {
 		log.Println("Starting server shutdown...")
 
+		_ = s.db.StopQueue(ctx)
+		log.Println("Closed river client...")
+
 		s.db.Close()
-		log.Println("Closed database pool...")
+		log.Println("Closed database pools...")
 
 		err := server.Shutdown(ctx)
 		if err != nil {

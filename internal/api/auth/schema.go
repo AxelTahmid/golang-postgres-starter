@@ -1,20 +1,21 @@
 package auth
 
+import "encoding/json"
+
 type RegisterRequest struct {
-	Email    string `json:"email" validate:"required,email,lowercase"`
-	Password string `json:"password" validate:"required,min=6"`
-	Role     string `json:"role" validate:"required,oneof=admin tenant customer"`
-	Phone    string `json:"phone,omitempty" validate:"required_if=Role tenant,omitempty,e164"`
-	// Tenant-specific fields
-	FullName    string `json:"full_name,omitempty" validate:"required_if=Role tenant,omitempty"`
-	CompanyName string `json:"company_name,omitempty" validate:"required_if=Role tenant,omitempty"`
-	Domain      string `json:"domain,omitempty" validate:"required_if=Role tenant,omitempty"`
+	Email    string `json:"email"      validate:"required,email,lowercase"`
+	Password string `json:"password"   validate:"required,min=6"`
+	Role     string `json:"role"       validate:"required,oneof=admin customer"`
 	// Customer-specific fields
-	FirstName string `json:"first_name,omitempty" validate:"required_if=Role customer,omitempty"`
-	LastName  string `json:"last_name,omitempty" validate:"required_if=Role customer,omitempty"`
+	FirstName string `json:"first_name" validate:"required_if=Role customer"`
+	LastName  string `json:"last_name"  validate:"required_if=Role customer"`
 }
 
 type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
+	Identity string `json:"identity" validate:"required,email_or_e164,lowercase"`
 	Password string `json:"password" validate:"required,min=6"`
+}
+
+type MeResponse struct {
+	AuthUser json.RawMessage `json:"auth_user"`
 }

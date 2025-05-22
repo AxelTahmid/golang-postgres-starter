@@ -28,37 +28,6 @@ VALUES
 RETURNING
     id;
 
--- name: CreateTenantUser :one
-WITH
-    new_tenant AS (
-        INSERT INTO
-            tenants (full_name, company_name, domain)
-        VALUES
-            (@FullName, @CompanyName, @Domain)
-        RETURNING
-            id AS tenant_id
-    )
-INSERT INTO
-    auth_users (
-        email,
-        phone,
-        password,
-        role,
-        tenant_id,
-        customer_id
-    )
-SELECT
-    LOWER(@Email),
-    @Phone,
-    @Password,
-    'tenant'::role_type,
-    tenant_id,
-    NULL -- No customer ID for tenant
-FROM
-    new_tenant
-RETURNING
-    id;
-
 -- name: CreateCustomerUser :one
 WITH
     new_customer AS (
@@ -104,45 +73,8 @@ WHERE
 
 -- name: GetUserDetails :one
 SELECT
-    -- auth_user columns
-    au.*,
-    -- tenants cloumns
-    t.full_name AS tenant_name,
-    t.company_name AS tenant_company_name,
-    t.domain AS tenant_domain,
-    t.status AS tenant_status,
-    t.store_settings AS tenant_store_settings,
-    t.payment_config AS tenant_payment_config,
-    t.admin_settings AS tenant_admin_settings,
-    t.suspended_at AS tenant_suspended_at,
-    t.created_at AS tenant_created_at,
-    t.updated_at AS tenant_updated_at,
-    -- customer columns
-    c.first_name AS customer_first_name,
-    c.last_name AS customer_last_name,
-    c.address_book AS customer_address_book,
-    c.settings AS customer_settings,
-    c.created_at AS customer_created_at
+    *
 FROM
     auth_users au
-    LEFT JOIN tenants t ON au.tenant_id = t.id
-    LEFT JOIN customers c ON au.customer_id = c.id
 WHERE
-    au.email = @Email
-    AND (
-        (
-            au.role = 'admin'
-            AND au.tenant_id IS NULL
-            AND au.customer_id IS NULL
-        )
-        OR (
-            au.role = 'tenant'
-            AND au.tenant_id IS NOT NULL
-            AND au.customer_id IS NULL
-        )
-        OR (
-            au.role = 'customer'
-            AND au.tenant_id IS NOT NULL
-            AND au.customer_id IS NOT NULL
-        )
-    );
+    au.email = @Email;
