@@ -1,4 +1,4 @@
-FROM golang:1.24-bookworm AS base
+FROM golang:1.26-trixie AS base
 FROM gcr.io/distroless/static-debian12 AS prod
 
 ## Dev Image, local files are mounted in volume
@@ -14,7 +14,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY *.go ./
-RUN CGO_ENABLED=0 GOOS=linux go build -x -o ./bin/main ./cmd/api/main.go
+RUN GOEXPERIMENT=jsonv2 CGO_ENABLED=0 GOOS=linux go build -trimpath -o ./bin/main ./cmd/api/main.go
 
 ## Production image built using multi-step docker, slow on pipeline
 FROM prod AS releasev0

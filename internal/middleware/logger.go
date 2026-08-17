@@ -39,13 +39,9 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 
 			ctx := utils.AppendCtx(r.Context(), commonAttrs...)
 
-			// Log request start
-			logger.LogAttrs(
-				ctx,
-				slog.LevelInfo,
-				"request started",
-				commonAttrs...,
-			)
+			// ContextHandler injects the common attributes into records logged
+			// with this context, so do not pass them a second time.
+			logger.LogAttrs(ctx, slog.LevelInfo, "request started")
 
 			// Defer the completion log
 			defer func() {
@@ -54,11 +50,9 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 					ctx,
 					slog.LevelInfo,
 					"request completed",
-					append(commonAttrs,
-						slog.Int("status", ww.Status()),
-						slog.Int("bytes", ww.BytesWritten()),
-						slog.Duration("latency-ms", time.Since(start)),
-					)...,
+					slog.Int("status", ww.Status()),
+					slog.Int("bytes", ww.BytesWritten()),
+					slog.Int64("latency-ms", time.Since(start).Milliseconds()),
 				)
 			}()
 

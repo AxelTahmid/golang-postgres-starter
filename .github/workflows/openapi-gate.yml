@@ -1,0 +1,35 @@
+name: OpenAPI Gate
+
+on:
+  pull_request:
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - "internal/server/openapi.json"
+      - "Makefile"
+      - "scripts/openapi-drift-gate.sh"
+      - ".github/workflows/openapi-gate.yml"
+
+jobs:
+  drift-gate:
+    runs-on: ubuntu-latest
+    env:
+      GOEXPERIMENT: jsonv2
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: "./go.mod"
+      - name: Verify generated contract
+        run: ./scripts/openapi-drift-gate.sh
+      - name: Test contract compiler and composition
+        run: go test ./internal/httpx ./cmd/openapi ./internal/server
+      - name: Race-test contract compiler
+        run: go test -race ./internal/httpx
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Lint OpenAPI specification
+        run: npx --yes @redocly/cli@2.45.0 lint ./internal/server/openapi.json

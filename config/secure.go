@@ -9,7 +9,7 @@ type Secure struct {
 	HostsProxyHeaders     []string          `split_words:"true" default:"X-Forwarded-Host"`
 	SSLProxyHeaders       map[string]string `split_words:"true" default:"X-Forwarded-Proto:https"`
 	SSLHost               string            `split_words:"true" default:"localhost"`
-	ContentSecurityPolicy string            `split_words:"true" default:"script-src $NONCE"`
+	ContentSecurityPolicy string            `split_words:"true" default:"script-src $NONCE 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://cdn.jsdelivr.net; font-src https://fonts.scalar.com https://cdn.jsdelivr.net"`
 	AllowedHostsAreRegex  bool              `split_words:"true" default:"false"`
 	SSLRedirect           bool              `split_words:"true" default:"true"`
 	STSSeconds            int64             `split_words:"true" default:"31536000"`

@@ -1,253 +1,240 @@
-# Improved Makefile with best practices
-
-# PHONY targets - all non-file targets should be declared here.
-.PHONY: help check-env tls jwt deps deps-upgrade deps-cleancache tidy run routes build up down fresh init dev exec-db log log-db sqlc-gen sqlc-vet \
-        migrate-status migrate-up migrate-down migrate-dto migrate-redo migrate-fresh migrate-validate migrate-version migrate-create \
-        river-up river-down lint vet clean gen 
-
-# Variables for common commands
-# GOOSE and RIVER doesnt provide docker images. SQLC does.
-GOOSE := docker compose --profile tools run --rm goose
-RIVER := docker compose --profile tools run --rm river
-SQLC := docker run --rm --network tinker_tinker_network -v $(PWD):/src -w /src --user $(shell id -u):$(shell id -g) sqlc/sqlc
-# Golint should be installed in machine for IDE integration. Depreciated.
-# GOLINT := docker run -t --rm -v $(PWD):/app -w /app golangci/golangci-lint:latest-alpine golangci-lint
-
-# Load .env file if it exists
+# Load .env when present.
 ifneq (,$(wildcard ./.env))
-    include .env
-    export
+	include .env
+	export
 endif
 
-# Default target: display help
+GOOSE := docker compose --profile tools run --rm goose
+RIVER := docker compose --profile tools run --rm river
+
+.PHONY: help
+## help: Display this help message
 help:
+	@echo "Usage:"
+	@echo "  make <target> [variables]"
+	@echo ""
 	@echo "Available targets:"
-	@echo "  help              - Display this help message"
-	@echo "  check-env         - Ensure .env exists (copy from .env.example if missing)"
-	@echo "  tls               - Generate self-signed TLS certificates for local development"
-	@echo "  jwt               - Generate JWT keys"
-	@echo "  deps              - Download and verify Go modules"
-	@echo "  deps-upgrade      - Upgrade Go module dependencies"
-	@echo "  deps-cleancache   - Clean Go module cache"
-	@echo "  tidy              - Tidy Go modules"
-	@echo "  run               - Run the API server"
-	@echo "  routes            - Run the routes server"
-	@echo "  build             - Build the API server binary (requires os and arch variables)"
-	@echo "  gen               - Run code generation"
-	@echo "  up                - Start Docker containers"
-	@echo "  down              - Stop Docker containers"
-	@echo "  fresh             - Rebuild and restart Docker containers (no cache)"
-	@echo "  init              - Initialize environment, generate certs, and run migrations"
-	@echo "  dev               - Prepare the environment and start development mode"
-	@echo "  exec-db           - Open a shell inside the database container"
-	@echo "  log               - Follow logs for the API container"
-	@echo "  log-db            - Follow logs for the database container"
-	@echo "  swagger           - Start swagger ui container at 3002"
-	@echo "  sqlc-gen          - Generate SQL code using sqlc"
-	@echo "  migrate-status    - Show migration status"
-	@echo "  migrate-up        - Migrate database to latest version"
-	@echo "  migrate-down      - Roll back the last migration"
-	@echo "  migrate-dto       - Migrate down to version 18"
-	@echo "  migrate-redo      - Re-run the latest migration"
-	@echo "  migrate-fresh     - Reset all migrations"
-	@echo "  migrate-validate  - Validate migration files"
-	@echo "  migrate-version   - Show current migration version"
-	@echo "  migrate-create    - Create a new migration file (requires filename variable)"
-	@echo "  river-up          - Run river migrate-up"
-	@echo "  river-down        - Run river migrate-down"
-	@echo "  lint              - Run golangci-lint"
-	@echo "  vet               - Run Go vet via golangci-lint"
-	@echo "  clean             - Remove built binaries and temporary files"
+	@sed -n 's/^##//p' $(MAKEFILE_LIST) | column -t -s ':' | sed -e 's/^/ /'
 
 # ----------------------------------------------------------------------
-# Environment Setup
+# Environment setup
 # ----------------------------------------------------------------------
 
-# Ensure .env exists; if not, copy from .env.example
+.PHONY: check-env
+## check-env: Ensure .env exists; copy .env.example when it does not
 check-env:
 	@test -f .env || cp .env.example .env
 
-# ----------------------------------------------------------------------
-# Certificate and Key Generation
-# ----------------------------------------------------------------------
-
-# Generate self-signed TLS certificates (local development only)
+.PHONY: tls jwt
+## tls: Generate a self-signed TLS certificate for local development
 tls:
 	@echo "Generating TLS certificates..."
-	cd cert && \
-	openssl req -nodes -newkey rsa:2048 -new -x509 -keyout tls.key -out tls.crt -days 365 \
-	-subj "/C=BD/ST=Dhaka/L=Dhaka/O=Golang/CN=localhost"
+	@mkdir -p cert
+	@openssl req -nodes -newkey rsa:2048 -new -x509 \
+		-keyout cert/tls.key -out cert/tls.crt -days 365 \
+		-subj "/C=BD/ST=Dhaka/L=Dhaka/O=Golang/CN=localhost"
 
-# Generate JWT keys
+## jwt: Generate the local ECDSA JWT key pair
 jwt:
 	@echo "Generating JWT keys..."
-	cd cert && \
-	openssl ecparam -genkey -name prime256v1 -noout -out jwt-pvt.pem && \
-	openssl ec -in jwt-pvt.pem -pubout -out jwt-pub.pem
+	@mkdir -p cert
+	@openssl ecparam -genkey -name prime256v1 -noout -out cert/jwt-pvt.pem
+	@openssl ec -in cert/jwt-pvt.pem -pubout -out cert/jwt-pub.pem
 
 # ----------------------------------------------------------------------
-# Dependency Management
+# Dependencies and application commands
 # ----------------------------------------------------------------------
 
+.PHONY: deps deps-upgrade deps-cleancache tidy
+## deps: Download and verify Go modules
 deps:
-	go mod download
-	go mod verify
+	@go mod download
+	@go mod verify
 
+## deps-upgrade: Upgrade direct and test dependencies
 deps-upgrade:
-	go get -u -t -d -v ./...
+	@go get -u -t ./...
 
+## deps-cleancache: Clear the Go module cache
 deps-cleancache:
-	go clean -modcache
+	@go clean -modcache
 
+## tidy: Tidy Go module declarations
 tidy:
-	go mod tidy
+	@GOEXPERIMENT=jsonv2 go mod tidy
 
-# ----------------------------------------------------------------------
-# Application Commands
-# ----------------------------------------------------------------------
-
-# Run the API server
+.PHONY: run build gen
+## run: Run the API server
 run:
-	go run ./cmd/api/main.go
+	GOEXPERIMENT=jsonv2 go run ./cmd/api
 
-# Run the routes server
-routes:
-	go run ./cmd/routes/main.go
-
-# Build the API server binary (requires os and arch variables)
+## build: Build the API binary (make build os=linux arch=amd64)
 build:
 	@if [ -z "$(os)" ] || [ -z "$(arch)" ]; then \
-		echo "Error: Both 'os' and 'arch' variables must be set. Usage: make build os=<value> arch=<value>"; \
+		echo "Error: os and arch are required. Usage: make build os=<value> arch=<value>"; \
 		exit 1; \
 	fi
-	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) go build -x -o ./bin/main ./cmd/api/main.go
+	GOEXPERIMENT=jsonv2 CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) \
+		go build -trimpath -o ./bin/main ./cmd/api
 
+## gen: Run Go code generation
 gen:
-	go generate ./...
+	GOEXPERIMENT=jsonv2 go generate ./...
 
 # ----------------------------------------------------------------------
-# Docker Management
+# Docker development environment
 # ----------------------------------------------------------------------
 
+.PHONY: up down fresh init dev exec-db log log-db
+## up: Start development containers
 up:
-	docker compose up -d
+	@docker compose up -d
 
+## down: Stop development and tool containers
 down:
-	docker compose down
+	@docker compose down
+	@docker compose --profile tools down --remove-orphans
 
+## fresh: Rebuild and restart containers without cache
 fresh: check-env
-	docker compose down --remove-orphans
-	docker compose build --no-cache
-	docker compose up -d --build -V
-	log
+	@docker compose down --remove-orphans
+	@docker compose build --no-cache
+	@docker compose up -d --build -V
+	$(MAKE) log
 
+## init: Install tools and initialize the local development environment
 init:
-	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	go install github.com/riverqueue/river/cmd/river@latest
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+	@go install github.com/pressly/goose/v3/cmd/goose@latest
+	@go install github.com/riverqueue/river/cmd/river@latest
+	@go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 	$(MAKE) check-env
 	$(MAKE) tls
 	$(MAKE) jwt
-	docker compose down --remove-orphans
-	docker compose build --no-cache
-	docker compose up -d --build -V
+	@docker compose down --remove-orphans
+	@docker compose build --no-cache
+	@docker compose up -d --build -V
 	$(MAKE) migrate-up
 	$(MAKE) river-up
 	$(MAKE) log
 
-# Development mode: tidy modules, restart containers, and follow logs
+## dev: Tidy dependencies, restart containers, and follow API logs
 dev: tidy down up log
 
-# Open a shell in the database container
+## exec-db: Open a shell in the database container
 exec-db:
-	docker compose exec -it db sh
+	@docker compose exec -it database sh
 
-# Follow logs for API and database containers
+## log: Follow API container logs
 log:
 	docker logs -f api
 
+## log-db: Follow database container logs
 log-db:
 	docker logs -f db
 
-swagger:
-	docker compose --profile tools up -d swagger
 # ----------------------------------------------------------------------
-# SQL Code Generation
+# API documentation
 # ----------------------------------------------------------------------
 
+.PHONY: openapi openapi-gate
+## openapi: Generate the OpenAPI 3.1 document from compiled typed routes
+openapi:
+	GOEXPERIMENT=jsonv2 go run ./cmd/openapi
+
+## openapi-gate: Verify deterministic generation and committed-spec drift
+openapi-gate:
+	@./scripts/openapi-drift-gate.sh
+
+# ----------------------------------------------------------------------
+# SQL code and migrations
+# ----------------------------------------------------------------------
+
+.PHONY: sqlc-gen sqlc-vet
+## sqlc-gen: Generate type-safe database code with sqlc
 sqlc-gen:
-	$(SQLC) generate
+	@sqlc generate
 
+## sqlc-vet: Vet sqlc queries
 sqlc-vet:
-	$(SQLC) vet
+	@sqlc vet
 
-# ----------------------------------------------------------------------
-# Database Migrations using Goose
-# ----------------------------------------------------------------------
-
+.PHONY: migrate-status migrate-up migrate-down migrate-redo migrate-fresh migrate-validate migrate-version migrate-create
+## migrate-status: Show Goose migration status
 migrate-status:
 	$(GOOSE) status
 
+## migrate-up: Apply all pending database migrations
 migrate-up:
 	$(GOOSE) up
 
+## migrate-down: Roll back the latest database migration
 migrate-down:
 	$(GOOSE) down
 
-migrate-dto:
-	$(GOOSE) down-to 8
-
+## migrate-redo: Roll back and reapply the latest migration
 migrate-redo:
 	$(GOOSE) redo
 
+## migrate-fresh: Reset all database migrations
 migrate-fresh:
 	$(GOOSE) reset
 
+## migrate-validate: Validate database migration files
 migrate-validate:
 	$(GOOSE) validate
 
+## migrate-version: Show the current database migration version
 migrate-version:
 	$(GOOSE) version
 
-# Create a new migration file (requires filename variable)
+## migrate-create: Create a SQL migration (make migrate-create filename=add_widgets)
 migrate-create:
 	@if [ -z "$(filename)" ]; then \
-		echo "Error: 'filename' variable must be set. Usage: make migrate-create filename=<value>"; \
+		echo "Error: filename is required. Usage: make migrate-create filename=<value>"; \
 		exit 1; \
 	fi
 	$(GOOSE) create $(filename) sql
 
-# ----------------------------------------------------------------------
-# Database Migrations using River CLI
-# ----------------------------------------------------------------------
-
+.PHONY: river-up river-down river-get river-list
+## river-up: Apply River queue migrations
 river-up:
 	$(RIVER) migrate-up
 
+## river-down: Roll back the latest River queue migration
 river-down:
 	$(RIVER) migrate-down
 
+## river-get: Show River queue migration state
 river-get:
 	$(RIVER) migrate-get
 
+## river-list: List River queue migrations
 river-list:
 	$(RIVER) migrate-list
 
 # ----------------------------------------------------------------------
-# Code Quality
+# Tests and code quality
 # ----------------------------------------------------------------------
 
-# Run golangci-lint using Docker container
+.PHONY: test test-httpx lint vet
+## test: Run the complete Go test suite
+test:
+	GOEXPERIMENT=jsonv2 go test ./...
+
+## test-httpx: Run the typed HTTP/OpenAPI framework tests
+test-httpx:
+	GOEXPERIMENT=jsonv2 go test -v ./internal/httpx ./cmd/openapi ./internal/server
+
+## lint: Run golangci-lint
 lint:
-	golangci-lint run
+	GOEXPERIMENT=jsonv2 golangci-lint run
 
-# Run Go vet using golangci-lint (without a config)
+## vet: Run Go vet
 vet:
-	golangci-lint run --no-config --enable govet
+	GOEXPERIMENT=jsonv2 go vet ./...
 
-# ----------------------------------------------------------------------
-# Cleanup
-# ----------------------------------------------------------------------
-
+.PHONY: clean
+## clean: Remove built binaries
 clean:
 	rm -rf ./bin

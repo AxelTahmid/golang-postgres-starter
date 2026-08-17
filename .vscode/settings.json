@@ -1,5 +1,10 @@
 {
-    "gopls": { "ui.semanticTokens": true },
+    "go.toolsEnvVars": {
+        "GOEXPERIMENT": "jsonv2"
+    },
+    "gopls": {
+        "ui.semanticTokens": true
+    },
     "[go]": {
         "editor.defaultFormatter": "golang.go",
         "editor.formatOnSave": true
@@ -16,7 +21,7 @@
     "go.lintOnSave": "package",
     "go.formatTool": "custom",
     "go.alternateTools": {
-        "customFormatter": "golangci-lint"
+        "customFormatter": "golangci-lint-v2"
     },
     "go.formatFlags": ["fmt", "--stdin"],
 
@@ -26,7 +31,7 @@
     "SQL-Formatter-VSCode.identifierCase": "preserve",
     "SQL-Formatter-VSCode.keywordCase": "upper",
     "SQL-Formatter-VSCode.paramTypes": {
-        "named": ["@", ":"]
+        "named": ["@", ":", "sqlc.narg"]
     },
     "goStructTagAutogen.tagSuggestion": {
         "json": {

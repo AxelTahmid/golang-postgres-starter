@@ -1,48 +1,32 @@
 package middleware
 
 import (
-	"encoding/json"
-	"log"
+	"errors"
+	"log/slog"
 	"net/http"
-	"net/http/httputil"
 	"runtime/debug"
 
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
+
+	"github.com/AxelTahmid/tinker/internal/httpx"
 )
 
-// Recovery adapted from https://github.com/go-chi/chi/blob/master/middleware/recoverer.go
+// Recovery converts panics to a sanitized problem response. Request bodies
+// are deliberately never dumped because they can contain credentials.
 func Recovery(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
-			if rvr := recover(); rvr != nil && rvr != http.ErrAbortHandler {
-				defer r.Body.Close()
-
-				logEntry := middleware.GetLogEntry(r)
-				if logEntry != nil {
-					logEntry.Panic(rvr, debug.Stack())
-				} else {
-					debug.PrintStack()
-				}
-
-				log.Printf("PANIC: %v", rvr)
-				// send to centralised logging system
-				log.Printf("request: %s %s\n", r.Method, r.URL.RequestURI())
-
-				dump, err := httputil.DumpRequest(r, true)
-				if err != nil {
-					log.Println(err)
-				}
-
-				b, _ := json.Marshal(dump)
-				log.Printf("host: %s\n", r.Host)
-				log.Printf("request body: %s\n", b)
-
-				w.WriteHeader(http.StatusInternalServerError)
+			if recovered := recover(); recovered != nil && recovered != http.ErrAbortHandler {
+				slog.ErrorContext(r.Context(), "panic recovered",
+					"panic", recovered,
+					"stack", string(debug.Stack()),
+					"method", r.Method,
+					"path", r.URL.Path,
+					"request_id", chimiddleware.GetReqID(r.Context()),
+				)
+				httpx.Error(w, r, errors.New("panic recovered"))
 			}
 		}()
-
 		next.ServeHTTP(w, r)
-	}
-
-	return http.HandlerFunc(fn)
+	})
 }

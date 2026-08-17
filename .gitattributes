@@ -1,0 +1,5 @@
+# Generated contract comparisons are byte-exact across platforms.
+internal/server/openapi.json -text
+
+# Shell scripts must keep LF so their shebangs work in Unix containers.
+*.sh text eol=lf

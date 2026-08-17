@@ -68,18 +68,6 @@ services:
         networks:
             - tinker_network
 
-    # https://github.com/swagger-api/swagger-ui/blob/HEAD/docs/usage/installation.md
-    swagger:
-        image: 'docker.swagger.io/swaggerapi/swagger-ui'
-        container_name: swagger
-        profiles: ['tools']
-        environment:
-            SWAGGER_JSON_URL: 'https://localhost:3000/openapi.json'
-        ports:
-            - 3002:8080
-        restart: on-failure
-        networks:
-            - tinker_network
     # postgres migration tool
     goose:
         container_name: goose-runner

@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -31,10 +30,7 @@ func NewRepository(pg db.DB) Repository {
 func (r *repository) FindUser(ctx context.Context, identity string) (*sqlc.AuthUser, error) {
 	user, err := r.query.GetUser(ctx, identity)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("user not found: %s", identity)
-		}
-		return nil, errors.New("unknown error ocurred")
+		return nil, fmt.Errorf("find user %q: %w", identity, err)
 	}
 
 	return &user, nil
@@ -43,11 +39,7 @@ func (r *repository) FindUser(ctx context.Context, identity string) (*sqlc.AuthU
 func (r *repository) GetUserDetails(ctx context.Context, identity string) (sqlc.AuthUser, error) {
 	user, err := r.query.GetUserDetails(ctx, identity)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return sqlc.AuthUser{}, fmt.Errorf("user not found: %s", identity)
-		}
-
-		return sqlc.AuthUser{}, errors.New("unknown error ocurred")
+		return sqlc.AuthUser{}, fmt.Errorf("get user details %q: %w", identity, err)
 	}
 
 	return user, nil
@@ -75,7 +67,7 @@ func (r *repository) UpdateVerificationStatus(
 	}
 
 	if rows == 0 {
-		return errors.New("user not found")
+		return pgx.ErrNoRows
 	}
 
 	return nil

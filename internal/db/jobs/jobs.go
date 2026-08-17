@@ -15,5 +15,5 @@ const (
 // RegisterWorkers registers all worker types.
 func RegisterWorkers(workers *river.Workers) {
 	// river.AddWorker(workers, &CustomerWorker{})
-	// Add other Helcim workers here
+	// Register application workers here.
 }

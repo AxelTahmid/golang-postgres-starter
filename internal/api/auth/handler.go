@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"net/http"
+	"context"
 
 	"github.com/AxelTahmid/tinker/internal/httpx"
 	"github.com/AxelTahmid/tinker/internal/jwt"
@@ -15,65 +15,41 @@ func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-func (h *Handler) RegisterAdmin(w http.ResponseWriter, r *http.Request) {
-	req, err := httpx.ParseRequest[*RegisterRequest](w, r)
-	if err != nil {
-		return
+func (h *Handler) RegisterAdmin(ctx context.Context, req *RegisterInput) (*httpx.Reply[httpx.NoBody], error) {
+	if err := h.svc.RegisterAdmin(ctx, &req.Body); err != nil {
+		return nil, err
 	}
-
-	if err = h.svc.RegisterAdmin(r.Context(), req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	httpx.Success(w, http.StatusCreated, "User registered successfully", nil, nil)
+	return httpx.Done("User registered successfully"), nil
 }
 
-func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	req, err := httpx.ParseRequest[*LoginRequest](w, r)
+func (h *Handler) Login(ctx context.Context, req *LoginInput) (*httpx.Reply[jwt.Tokens], error) {
+	tokens, err := h.svc.Login(ctx, &req.Body)
 	if err != nil {
-		return
+		return nil, err
 	}
-
-	tokens, err := h.svc.Login(r.Context(), req)
-	if err != nil {
-		httpx.Error(w, http.StatusConflict, err.Error())
-		return
-	}
-
-	httpx.Success(w, http.StatusOK, "Login successful", tokens, nil)
+	return httpx.OK("Login successful", *tokens), nil
 }
 
-// TODO: remove helcim api token from response
-func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
-	userClaim, _, err := jwt.ParseClaimsCtx(r.Context())
+func (h *Handler) Me(ctx context.Context, _ *EmptyInput) (*httpx.Reply[UserResponse], error) {
+	claims, _, err := jwt.ParseClaimsCtx(ctx)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, err.Error())
-		return
+		return nil, httpx.NewUnauthorizedError("authentication required")
 	}
-
-	// Retrieve user details
-	user, err := h.svc.Me(r.Context(), userClaim.Subject)
+	user, err := h.svc.Me(ctx, claims.Subject)
 	if err != nil {
-		httpx.Error(w, http.StatusNotFound, err.Error())
-		return
+		return nil, err
 	}
-
-	httpx.Success(w, http.StatusOK, "User details fetched successfully", user, nil)
+	return httpx.OK("User details fetched successfully", userResponse(user)), nil
 }
 
-func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
-	userClaim, _, err := jwt.ParseClaimsCtx(r.Context())
+func (h *Handler) Refresh(ctx context.Context, _ *EmptyInput) (*httpx.Reply[jwt.Tokens], error) {
+	claims, _, err := jwt.ParseClaimsCtx(ctx)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, err.Error())
-		return
+		return nil, httpx.NewUnauthorizedError("authentication required")
 	}
-
-	tokens, err := h.svc.Refresh(r.Context(), userClaim.Subject)
+	tokens, err := h.svc.Refresh(ctx, claims.Subject)
 	if err != nil {
-		httpx.Error(w, http.StatusUnauthorized, err.Error())
-		return
+		return nil, err
 	}
-
-	httpx.Success(w, http.StatusOK, "Token refreshed successfully", tokens, nil)
+	return httpx.OK("Token refreshed successfully", *tokens), nil
 }

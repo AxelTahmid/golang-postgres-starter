@@ -18,10 +18,16 @@
 vendor/
 bin/
 tmp/
+.gocache/
 
 # Go workspace file
 go.work
 go.work.sum
+
+# Editors and operating-system metadata
+.DS_Store
+.fleet/
+.idea/
 
 # extensions to ignore
 *.env

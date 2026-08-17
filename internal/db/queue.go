@@ -51,7 +51,7 @@ func NewQueue(ctx context.Context, pool *pgxpool.Pool, conf *config.Server, logg
 	// Register all workers.
 	workers := river.NewWorkers()
 
-	// Register Helcim workers
+	// Register application workers.
 	logger.DebugContext(ctx, "queue: registering job workers")
 	jobs.RegisterWorkers(workers)
 

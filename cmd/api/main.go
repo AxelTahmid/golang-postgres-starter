@@ -63,7 +63,7 @@ func main() {
 	}
 
 	// instantiate req parsing, serialization and validation
-	err = httpx.NewValidator()
+	err = httpx.InitValidator()
 	if err != nil {
 		log.Fatalf("failed to register custom validators: %v", err)
 	}

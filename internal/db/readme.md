@@ -89,14 +89,13 @@ func CreateUser(ctx context.Context, store db.Store, user User) error {
 ### Adding Background Jobs
 
 ```go
-func ScheduleHelcimJob(ctx context.Context, db db.DB, customer helcim.Customer) error {
-    args := db.HelcimCustomerArgs{
-        APIToken: "token",
-        Action:   db.ActionCustomerCreate,
-        Customer: customer,
+func ScheduleWelcomeEmail(ctx context.Context, db db.DB, userID int64, email string) error {
+    args := db.WelcomeEmailArgs{
+        UserID: userID,
+        Email:  email,
     }
 
-    _, err := db.Queue().InsertHelcimCustomerJob(ctx, args, nil)
+    _, err := db.Queue().InsertWelcomeEmailJob(ctx, args, nil)
     return err
 }
 ```
