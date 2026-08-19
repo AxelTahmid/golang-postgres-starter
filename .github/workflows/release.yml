@@ -1,0 +1,44 @@
+name: Release Version
+run-name: Release with semantic versioning and changelog
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # svu and the changelog need the full history and every tag.
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./go.mod"
+
+      - name: Install release tools
+        run: |
+          go install github.com/caarlos0/svu/v3@latest
+          go install github.com/git-chglog/git-chglog/cmd/git-chglog@latest
+
+      - name: Configure git
+        run: |
+          git config user.name "release-bot"
+          git config user.email "release-bot@users.noreply.github.com"
+
+      - name: Release (VERSION bump + changelog + tag)
+        run: make release
+
+      - name: Push commit and tag
+        run: git push origin main --follow-tags
+
+      - name: Create GitHub release with notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: make github-release

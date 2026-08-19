@@ -6,7 +6,7 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/AxelTahmid/tinker/internal/clientip"
+	"github.com/AxelTahmid/tinker/pkg/clientip"
 )
 
 type Server struct {
@@ -26,6 +26,13 @@ type Server struct {
 
 func (s Server) TrustedProxyPrefixes() []netip.Prefix {
 	return clientip.ParsePrefixes(s.TrustedProxies)
+}
+
+// IsProduction reports whether the service is running in its production
+// environment. Prefer it over comparing AppEnv at each call site so the
+// spelling of the production environment lives in exactly one place.
+func (s Server) IsProduction() bool {
+	return s.AppEnv == "production"
 }
 
 func (s Server) TLSOptions() *tls.Config {

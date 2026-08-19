@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
+
+	"github.com/AxelTahmid/tinker/pkg/acl"
 )
 
 // ---------------------------------------------------------------------------
@@ -297,7 +299,7 @@ type Guard struct {
 	// source of the documented 401/403 (and 400) statuses.
 	problems []ProblemKind
 	// permissions are the ACL slugs this guard enforces, combined per mode.
-	permissions    []string
+	permissions    []acl.Slug
 	permissionMode PermissionMode
 	// note is optional prose for a policy no structured field can state; it
 	// joins the operation's access-control block verbatim, whatever else the
@@ -332,7 +334,7 @@ type GuardConfig struct {
 	// Permissions + PermissionMode carry ACL claims for permission guards.
 	// Mode defaults to ModeSingle for exactly one slug and must be explicit
 	// for more.
-	Permissions    []string
+	Permissions    []acl.Slug
 	PermissionMode PermissionMode
 	// Note is optional access-control prose, always documented.
 	Note string
@@ -374,6 +376,14 @@ func NewGuard(cfg GuardConfig) (Guard, error) {
 			return Guard{}, fmt.Errorf("httpx: NewGuard(%q): a Challenge guard must not also declare an Unauthorized() problem kind — the challenge 401 is bodiless", cfg.ID)
 		}
 	}
+	// Reject a malformed slug at construction. A typo here would otherwise
+	// publish a requirement no token can ever satisfy, and the route would
+	// 403 in production with a correct-looking declaration.
+	for _, permission := range cfg.Permissions {
+		if err := permission.Validate(); err != nil {
+			return Guard{}, fmt.Errorf("httpx: NewGuard(%q): %w", cfg.ID, err)
+		}
+	}
 	mode := cfg.PermissionMode
 	switch {
 	case len(cfg.Permissions) == 0:
@@ -398,7 +408,7 @@ func NewGuard(cfg GuardConfig) (Guard, error) {
 		check:          cfg.Check,
 		credentials:    cloneRequirementSet(cfg.Credentials),
 		problems:       append([]ProblemKind(nil), cfg.Problems...),
-		permissions:    append([]string(nil), cfg.Permissions...),
+		permissions:    append([]acl.Slug(nil), cfg.Permissions...),
 		permissionMode: mode,
 		note:           cfg.Note,
 		fallbackNote:   cfg.FallbackNote,

@@ -29,6 +29,9 @@ Prefer existing Make targets over one-off command variants.
 
 ## Architecture
 
+Application code lives under `internal/`; dependency-free leaf packages that a
+consumer of this template could lift wholesale live under `pkg/`.
+
 - `cmd/api`: production server entry point.
 - `cmd/openapi`: deterministic build-time OpenAPI generator.
 - `config`: environment-backed runtime configuration plus canonical docs
@@ -37,14 +40,34 @@ Prefer existing Make targets over one-off command variants.
   response types.
 - `internal/httpx`: compiled typed HTTP framework and OpenAPI generator.
 - `internal/db`: database clients, migrations, queries, and generated sqlc.
+- `internal/db/cache`: Postgres-backed key/value cache and the fixed-window
+  rate limiter built on it.
 - `internal/jwt`: JWT service, request context, and typed route guards.
 - `internal/middleware`: transport-only middleware.
 - `internal/server`: composition root, route tree, Scalar UI, and embedded
   OpenAPI artifact.
+- `pkg/acl`: permission slugs the route guards enforce and document.
+- `pkg/argon2id`, `pkg/clientip`, `pkg/filter`: password hashing, trusted
+  client-address resolution, list query parsing.
+- `pkg/buildinfo`, `pkg/ctxkeys`, `pkg/ptrx`, `pkg/slogx`: build metadata,
+  shared context keys, pointer helpers, slog handlers.
 
 Keep handlers thin, business rules in services, and SQL access in repositories
 or generated queries. Pass `context.Context` through handler → service → DB.
 Inject dependencies explicitly; do not add hidden mutable globals.
+
+## Composition root
+
+`server.Bootstrap` wires the database, JWT service, validators and HTTP server
+once for every binary. Entry points call it and then do only their own work —
+`cmd/api` starts the job queue, `cmd/openapi` writes the document. Add shared
+wiring there, never in a `main`, or the entry points drift apart.
+
+`server.RouterForDocs` compiles the same `Routes()` tree over `db.NewInert()`,
+a client whose construction-time accessors succeed and whose query, transaction
+and ping methods panic. Docs generation therefore runs every real service
+constructor without a database. Never hand a nil dependency to a constructor to
+make a build-time path work; use the inert client so a mistake fails loudly.
 
 ## Typed HTTP operations
 
@@ -113,12 +136,22 @@ coordinated breaking changes.
 ## Database and security
 
 Use sqlc queries under `internal/db/queries`; do not add hand-written SQL in
-handlers. Use transactions for multi-step writes and keep them short. Log raw
-database errors at the service boundary and return sanitized typed problems.
-Never expose password hashes, tokens, connection strings, or internal DB
-errors.
+handlers. Use transactions for multi-step writes and keep them short — always
+through `WithTransaction`, whose named return is what makes a failed callback
+roll back. Log raw database errors at the service boundary and return sanitized
+typed problems. Never expose password hashes, tokens, connection strings, or
+internal DB errors.
 
-Forwarding headers are accepted only through `internal/clientip` and only from
+`DB_LOG_QUERIES` traces every statement with its bound arguments. It is a
+development aid and must stay off in production, where it would write
+credentials and personal data into the log stream.
+
+Rate limits go through `internal/db/cache`, the one shared cache mechanism.
+Its fixed-window counter is a single atomic statement, and rate-limit keys
+hash the identifier so raw emails and addresses never sit in the table. Do not
+add a per-feature limiter table.
+
+Forwarding headers are accepted only through `pkg/clientip` and only from
 `SERVER_TRUSTED_PROXIES`. Do not reintroduce Chi's unconditional `RealIP`
 middleware or read client-controlled forwarding headers directly.
 
@@ -135,4 +168,6 @@ recovery or authentication paths.
 - Do not edit generated sqlc files by hand.
 - Do not hand-edit `internal/server/openapi.json`.
 - Add tests for reusable framework behavior and security-sensitive changes.
+- Releases are cut with `make release` (conventional commits → svu bump →
+  `git-chglog` → tag). Do not hand-edit `VERSION` or `CHANGELOG.md`.
 - Do not commit unless the user explicitly requests it.

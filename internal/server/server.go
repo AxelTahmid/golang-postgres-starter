@@ -25,16 +25,17 @@ func NewServer(conf *config.Config, database db.DB, logger *slog.Logger) *Server
 }
 
 func (s *Server) Start(ctx context.Context) {
-	handler, err := s.BuildHandler()
-	if err != nil {
-		s.log.ErrorContext(ctx, "failed to build HTTP application", "error", err)
-		return
-	}
-
 	loggerLevel := slog.LevelDebug
-	if s.conf.Server.AppEnv == "production" {
+	if s.conf.Server.IsProduction() {
 		loggerLevel = slog.LevelWarn
 	}
+
+	// Declare and compile the route tree: Build resolves paths and guard
+	// chains, validates every declaration, and materializes the router.
+	// MustBuildHandler keeps the fail-loudly-at-startup behavior — a
+	// declaration violation must not reach a serving process, and must not
+	// be mistaken for a clean exit either.
+	handler := s.MustBuildHandler()
 	server := http.Server{
 		Addr:         fmt.Sprintf(":%d", s.conf.Server.Port),
 		Handler:      handler,
@@ -57,7 +58,7 @@ func (s *Server) Start(ctx context.Context) {
 	})
 
 	s.log.InfoContext(ctx, "server starting", "port", s.conf.Server.Port)
-	err = server.ListenAndServeTLS("", "")
+	err := server.ListenAndServeTLS("", "")
 	if errors.Is(err, http.ErrServerClosed) {
 		<-shutdownComplete
 		return

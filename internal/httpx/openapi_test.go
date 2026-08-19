@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"testing"
+
+	"github.com/AxelTahmid/tinker/pkg/acl"
 )
 
 // committedSpec loads internal/server/openapi.json — the pinned document the
@@ -162,7 +164,7 @@ func TestDocumentDerivedResponsesAndSecurity(t *testing.T) {
 		ID: "can:coupon.read", Check: passCheck,
 		Credentials: Requires("BearerAuth"),
 		Problems:    []ProblemKind{Unauthorized(), Forbidden()},
-		Permissions: []string{"coupon.read"},
+		Permissions: []acl.Slug{"coupon.read"},
 	})
 
 	root := NewGroup(Defaults{Tags: []string{"coupon"}})

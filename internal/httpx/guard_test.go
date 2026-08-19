@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/AxelTahmid/tinker/pkg/acl"
 )
 
 func TestRequiresBuildsOneANDedAlternative(t *testing.T) {
@@ -182,11 +184,11 @@ func TestNewGuardValidatesItsConfig(t *testing.T) {
 			want: "with no Permissions",
 		},
 		"many slugs need explicit mode": {
-			cfg:  GuardConfig{ID: "x", Check: passCheck, Permissions: []string{"a.read", "b.read"}},
+			cfg:  GuardConfig{ID: "x", Check: passCheck, Permissions: []acl.Slug{"a.read", "b.read"}},
 			want: "explicit PermissionMode",
 		},
 		"unknown mode": {
-			cfg:  GuardConfig{ID: "x", Check: passCheck, Permissions: []string{"a.read"}, PermissionMode: "sometimes"},
+			cfg:  GuardConfig{ID: "x", Check: passCheck, Permissions: []acl.Slug{"a.read"}, PermissionMode: "sometimes"},
 			want: "unknown PermissionMode",
 		},
 	}
@@ -288,7 +290,7 @@ func TestNewGuardDefaultsSingleMode(t *testing.T) {
 		Check:       passCheck,
 		Credentials: Requires("BearerAuth"),
 		Problems:    []ProblemKind{Unauthorized(), Forbidden()},
-		Permissions: []string{"coupon.read"},
+		Permissions: []acl.Slug{"coupon.read"},
 	})
 	if err != nil {
 		t.Fatalf("NewGuard: %v", err)

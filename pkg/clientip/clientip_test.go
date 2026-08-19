@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/AxelTahmid/tinker/internal/clientip"
+	"github.com/AxelTahmid/tinker/pkg/clientip"
 )
 
 var trusted = clientip.ParsePrefixes([]string{

@@ -1,15 +1,15 @@
-package utils
+package slogx
 
 import (
 	"context"
 	"log/slog"
+
+	"github.com/AxelTahmid/tinker/pkg/ctxkeys"
 )
 
-type ctxKey string
-
-const (
-	SlogFields ctxKey = "slog_fields"
-)
+// SlogFields is the context key under which AppendCtx accumulates attributes.
+// It is an alias of the shared constant so callers need only this package.
+const SlogFields = ctxkeys.SlogFields
 
 type ContextHandler struct {
 	slog.Handler

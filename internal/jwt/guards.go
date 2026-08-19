@@ -7,14 +7,16 @@ import (
 	"strings"
 
 	"github.com/AxelTahmid/tinker/internal/httpx"
+	"github.com/AxelTahmid/tinker/pkg/ctxkeys"
 )
 
-type authCtxKey string
-
 const (
-	AuthHeaderKey            = "Authorization"
-	BearerPrefix             = "Bearer"
-	AuthCtxKey    authCtxKey = "ctx:auth-user"
+	AuthHeaderKey = "Authorization"
+	BearerPrefix  = "Bearer"
+
+	// AuthCtxKey is where the bearer guards publish parsed claims. It is an
+	// alias of the shared constant so the key has exactly one definition.
+	AuthCtxKey = ctxkeys.AuthCtxKey
 )
 
 var errInvalidAuthHeader = errors.New("authorization header format must be 'Bearer {token}'")

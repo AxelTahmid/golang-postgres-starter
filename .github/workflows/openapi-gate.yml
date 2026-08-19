@@ -25,7 +25,7 @@ jobs:
       - name: Verify generated contract
         run: ./scripts/openapi-drift-gate.sh
       - name: Test contract compiler and composition
-        run: go test ./internal/httpx ./cmd/openapi ./internal/server
+        run: go test ./internal/httpx ./cmd/openapi ./internal/server ./internal/db ./internal/db/cache ./pkg/acl
       - name: Race-test contract compiler
         run: go test -race ./internal/httpx
       - uses: actions/setup-node@v4

@@ -14,8 +14,9 @@ import (
 const specPath = "internal/server/openapi.json"
 
 func main() {
-	app := server.RouterForDocs()
-	cfg := config.DocsConfig().OpenAPI
+	conf := config.DocsConfig()
+	app := server.RouterForDocs(conf)
+	cfg := conf.OpenAPI
 	out, err := app.OpenAPI(openAPIInfo(&cfg))
 	if err != nil {
 		slog.Error("failed to generate OpenAPI document", "error", err)

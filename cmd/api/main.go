@@ -10,65 +10,46 @@ import (
 	"github.com/lmittmann/tint"
 
 	"github.com/AxelTahmid/tinker/config"
-	"github.com/AxelTahmid/tinker/internal/db"
-	"github.com/AxelTahmid/tinker/internal/httpx"
-	"github.com/AxelTahmid/tinker/internal/jwt"
 	"github.com/AxelTahmid/tinker/internal/server"
-	"github.com/AxelTahmid/tinker/internal/utils"
+	"github.com/AxelTahmid/tinker/pkg/buildinfo"
+	"github.com/AxelTahmid/tinker/pkg/slogx"
 )
 
 func main() {
 	ctx := context.Background()
 
-	// Load configuration
+	// Load configuration.
 	conf, err := config.InitConfig()
 	if err != nil {
 		log.Fatalf("Parsing conf failed: %v", err)
 	}
 
-	// Setup logger
-	h := &utils.ContextHandler{Handler: slog.NewJSONHandler(os.Stdout, nil)}
+	// Setup logger: ERROR and above go to stderr, everything else to stdout,
+	// so a process supervisor can capture the two streams into separate files.
+	h := &slogx.ContextHandler{Handler: slogx.NewSplitLevelHandler(
+		slog.NewJSONHandler(os.Stdout, nil),
+		slog.NewJSONHandler(os.Stderr, nil),
+		slog.LevelError,
+	)}
 	logger := slog.New(h)
-	if conf.Server.AppEnv != "production" {
-		logger = slog.New(
-			&utils.ContextHandler{Handler: tint.NewHandler(os.Stdout, &tint.Options{
-				Level:      slog.LevelInfo,
-				TimeFormat: time.Kitchen,
-			})},
-		)
+	if !conf.Server.IsProduction() {
+		tinted := tint.NewTextHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen})
+		logger = slog.New(&slogx.ContextHandler{Handler: tinted})
 	}
-	// Set default logger
+	// Set default logger.
 	slog.SetDefault(logger)
+	logger.InfoContext(ctx, "server: starting", "env", conf.Server.AppEnv, "version", buildinfo.Version)
 
-	database, err := db.New(ctx, &conf.DB, logger)
+	app, err := server.Bootstrap(ctx, conf, logger)
 	if err != nil {
-		log.Fatalf("Db Connection Failed: %v", err)
+		log.Fatalf("bootstrap failed: %v", err)
 	}
 
-	// Start the job queue
-	if err = database.StartQueue(ctx, &conf.Server); err != nil {
-		database.Close()
+	// Binary-specific step: this is the process that actually works the queue.
+	if err = app.DB.StartQueue(ctx, &conf.Server); err != nil {
+		app.DB.Close()
 		log.Fatalf("Failed to start river queue: %v", err)
 	}
 
-	// Check if database connection is successful
-	err = database.Ping(ctx)
-	if err != nil {
-		log.Fatalf("Error connecting to database: %v", err)
-	}
-
-	err = jwt.InitJWT(&conf.Jwt)
-	if err != nil {
-		log.Fatalf("failed to create jwt manager: %v", err)
-	}
-
-	// instantiate req parsing, serialization and validation
-	err = httpx.InitValidator()
-	if err != nil {
-		log.Fatalf("failed to register custom validators: %v", err)
-	}
-
-	// Start server
-	s := server.NewServer(conf, database, logger)
-	s.Start(ctx)
+	app.Server.Start(ctx)
 }

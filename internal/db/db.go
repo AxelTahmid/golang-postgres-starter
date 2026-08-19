@@ -17,7 +17,6 @@ import (
 // Common errors that can be checked with errors.Is .
 var (
 	ErrNotInitialized = errors.New("database connection not yet initialized")
-	ErrNoTenantID     = errors.New("no tenant ID in context")
 )
 
 // Pool represents a database connection pool with basic operations.
@@ -227,9 +226,31 @@ func (s *PostgresRiverStore) Close() {
 // TransactionFunc is a function that executes within a transaction.
 type TransactionFunc func(ctx context.Context, tx pgx.Tx) error
 
+// txBeginner is the slice of a pool or connection that runInTransaction
+// needs. It exists so the helper can be exercised without a database.
+type txBeginner interface {
+	Begin(ctx context.Context) (pgx.Tx, error)
+}
+
 // WithTransaction executes the given function within a transaction.
 func (s *PostgresStore) WithTransaction(ctx context.Context, fn TransactionFunc) error {
-	tx, err := s.pool.Begin(ctx)
+	return runInTransaction(ctx, s.logger, s.pool, fn)
+}
+
+// runInTransaction begins a transaction, runs fn, and then commits or rolls
+// back based on fn's outcome.
+//
+// The named return is load-bearing: the deferred closure decides between
+// commit and rollback by reading err, so fn's result has to be visible to it.
+// With an unnamed return the closure would only ever see the (already nil)
+// error from Begin and would commit every transaction, failed ones included.
+func runInTransaction(
+	ctx context.Context,
+	logger *slog.Logger,
+	beginner txBeginner,
+	fn TransactionFunc,
+) (err error) {
+	tx, err := beginner.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -237,21 +258,25 @@ func (s *PostgresStore) WithTransaction(ctx context.Context, fn TransactionFunc)
 	defer func() {
 		if p := recover(); p != nil {
 			if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
-				s.logger.ErrorContext(ctx, "failed to rollback transaction after panic",
+				logger.ErrorContext(ctx, "failed to rollback transaction after panic",
 					"panic", p, "rollback_error", rollbackErr)
 			}
 			panic(p) // Re-panic after rollback.
-		} else if err != nil {
+		}
+
+		if err != nil {
 			if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
-				s.logger.ErrorContext(ctx, "failed to rollback transaction after error",
+				logger.ErrorContext(ctx, "failed to rollback transaction after error",
 					"error", err, "rollback_error", rollbackErr)
 			}
-		} else {
-			if commitErr := tx.Commit(ctx); commitErr != nil {
-				err = fmt.Errorf("failed to commit transaction: %w", commitErr)
-			}
+			return
+		}
+
+		if commitErr := tx.Commit(ctx); commitErr != nil {
+			err = fmt.Errorf("failed to commit transaction: %w", commitErr)
 		}
 	}()
 
-	return fn(ctx, tx)
+	err = fn(ctx, tx)
+	return err
 }

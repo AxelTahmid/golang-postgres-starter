@@ -36,15 +36,17 @@ type jwtService struct {
 	clockSkew   time.Duration
 }
 
-// Singleton instance of jwtService.
+// Singleton instance of jwtService. initErr records the outcome of the
+// one-shot initialization at package scope so that repeat InitJWT calls
+// report a failed first attempt instead of returning nil over a nil service.
 var (
 	jwtOnce sync.Once
 	jwtSvc  *jwtService
+	initErr error
 )
 
 // InitJWT initializes a new jwtService.
 func InitJWT(c *config.Jwt) error {
-	var initErr error
 	slog.Debug("Initializing JWT service")
 	jwtOnce.Do(func() {
 		privateKey, publicKey, err := loadKeys(c.PubKeyPath, c.PvtKeyPath)

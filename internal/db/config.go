@@ -65,10 +65,13 @@ func parsePoolConfig(dbURL string, conf *config.Database, logger *slog.Logger) (
 	// Configure common pool settings.
 	configurePoolSettings(poolConfig, conf)
 
-	// Configure logging.
-	poolConfig.ConnConfig.Tracer = &tracelog.TraceLog{
-		Logger:   NewDBLogger(logger),
-		LogLevel: tracelog.LogLevelTrace,
+	// Trace every SQL statement only when explicitly enabled (development);
+	// in production this would log full query text and arguments.
+	if conf.LogQueries {
+		poolConfig.ConnConfig.Tracer = &tracelog.TraceLog{
+			Logger:   NewDBLogger(logger),
+			LogLevel: tracelog.LogLevelTrace,
+		}
 	}
 
 	return poolConfig, nil

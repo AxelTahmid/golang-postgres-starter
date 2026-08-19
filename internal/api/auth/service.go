@@ -8,7 +8,7 @@ import (
 	"github.com/AxelTahmid/tinker/internal/db/sqlc"
 	"github.com/AxelTahmid/tinker/internal/httpx"
 	"github.com/AxelTahmid/tinker/internal/jwt"
-	"github.com/AxelTahmid/tinker/internal/utils/argon2id"
+	"github.com/AxelTahmid/tinker/pkg/argon2id"
 )
 
 type Service interface {

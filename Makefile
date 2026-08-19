@@ -63,6 +63,11 @@ deps-cleancache:
 tidy:
 	@GOEXPERIMENT=jsonv2 go mod tidy
 
+# Semantic version from the VERSION file, injected into the binary at build
+# time and reported by the startup log. Bumped by `make release`.
+APP_VERSION := $(shell cat VERSION 2>/dev/null || echo dev)
+VERSION_LDFLAG := -X github.com/AxelTahmid/tinker/pkg/buildinfo.Version=$(APP_VERSION)
+
 .PHONY: run build gen
 ## run: Run the API server
 run:
@@ -75,11 +80,62 @@ build:
 		exit 1; \
 	fi
 	GOEXPERIMENT=jsonv2 CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) \
-		go build -trimpath -o ./bin/main ./cmd/api
+		go build -ldflags="-s -w $(VERSION_LDFLAG)" -trimpath -o ./bin/main ./cmd/api
 
 ## gen: Run Go code generation
 gen:
 	GOEXPERIMENT=jsonv2 go generate ./...
+
+# ----------------------------------------------------------------------
+# Release (conventional commits -> semver bump + CHANGELOG + git tag)
+# Go-native: svu computes the next version from the conventional commits since
+# the last tag; git-chglog regenerates CHANGELOG.md. Both installed by
+# `make init`.
+# ----------------------------------------------------------------------
+
+.PHONY: release release-dry github-release
+
+# Optional bump override: make release bump=major|minor|patch|prerelease
+# Without it, svu derives the bump from the conventional commits since the last
+# tag (fix -> patch, feat -> minor, BREAKING CHANGE / type! -> major).
+BUMP_CMD = $(if $(bump),svu $(bump),svu next)
+
+## release: Bump VERSION + CHANGELOG.md from conventional commits, commit, and tag (optional: bump=major|minor|patch)
+release:
+	@current=$$(svu current); next=$$($(BUMP_CMD)); \
+	if [ "$$current" = "$$next" ]; then \
+		echo "No releasable commits since $$current - nothing to do."; \
+		exit 0; \
+	fi; \
+	echo "Releasing $$current -> $$next"; \
+	printf '%s\n' "$${next#v}" > VERSION; \
+	git-chglog --next-tag "$$next" -o CHANGELOG.md; \
+	git add VERSION CHANGELOG.md; \
+	git commit -m "chore(release): $$next"; \
+	git tag -a "$$next" -m "$$next"; \
+	echo "Tagged $$next. Push with: git push origin main --follow-tags"
+
+## release-dry: Preview the next version and changelog entry without writing anything (optional: bump=major|minor|patch)
+release-dry:
+	@current=$$(svu current); next=$$($(BUMP_CMD)); \
+	if [ "$$current" = "$$next" ]; then \
+		echo "No releasable commits since $$current - nothing to release."; \
+		exit 0; \
+	fi; \
+	echo "Would release: $$current -> $$next"; \
+	echo "--- changelog preview ---"; \
+	git-chglog --next-tag "$$next" "$$next"
+
+## github-release: Publish a GitHub Release for the current tag with its changelog section (run after pushing tags)
+github-release:
+	@tag=$$(svu current); \
+	if gh release view "$$tag" > /dev/null 2>&1; then \
+		echo "GitHub release $$tag already exists - nothing to do."; \
+		exit 0; \
+	fi; \
+	git-chglog -c .chglog/config.yml -t .chglog/RELEASE.tpl.md "$$tag" | \
+		gh release create "$$tag" --title "$$tag" --notes-file - --verify-tag --latest; \
+	echo "Published GitHub release $$tag"
 
 # ----------------------------------------------------------------------
 # Docker development environment
@@ -108,6 +164,8 @@ init:
 	@go install github.com/pressly/goose/v3/cmd/goose@latest
 	@go install github.com/riverqueue/river/cmd/river@latest
 	@go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+	@go install github.com/caarlos0/svu/v3@latest
+	@go install github.com/git-chglog/git-chglog/cmd/git-chglog@latest
 	$(MAKE) check-env
 	$(MAKE) tls
 	$(MAKE) jwt
@@ -141,6 +199,8 @@ log-db:
 ## openapi: Generate the OpenAPI 3.1 document from compiled typed routes
 openapi:
 	GOEXPERIMENT=jsonv2 go run ./cmd/openapi
+	@echo "Linting OpenAPI specification..."
+	@npx --yes @redocly/cli@2.45.0 lint ./internal/server/openapi.json
 
 ## openapi-gate: Verify deterministic generation and committed-spec drift
 openapi-gate:

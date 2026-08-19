@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/AxelTahmid/tinker/internal/utils"
+	"github.com/AxelTahmid/tinker/pkg/slogx"
 )
 
 // Logger middleware creates a handler that logs information about each HTTP request.
@@ -37,7 +37,7 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 				slog.String("user-agent", r.UserAgent()),
 			}
 
-			ctx := utils.AppendCtx(r.Context(), commonAttrs...)
+			ctx := slogx.AppendCtx(r.Context(), commonAttrs...)
 
 			// ContextHandler injects the common attributes into records logged
 			// with this context, so do not pass them a second time.

@@ -16,4 +16,8 @@ type Database struct {
 	RiverUrl          string        `split_words:"true"                          required:"true"`
 	SslMode           string        `                   default:"disable"`
 	TimeZone          string        `split_words:"true" default:"America/Regina"`
+	// LogQueries traces every SQL statement, with its bound arguments, to the
+	// logger. Development aid only: in production this writes credentials and
+	// personal data into the log stream and costs a log record per statement.
+	LogQueries bool `split_words:"true" default:"false"`
 }

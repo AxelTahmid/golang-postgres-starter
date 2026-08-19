@@ -19,6 +19,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/AxelTahmid/tinker/pkg/acl"
 )
 
 const schemaRefPrefix = "#/components/schemas/"
@@ -641,8 +643,7 @@ func accessControlLines(guards []Guard) []string {
 		if len(g.permissions) == 0 {
 			continue
 		}
-		slugs := make([]string, len(g.permissions))
-		copy(slugs, g.permissions)
+		slugs := acl.Strings(g.permissions)
 		switch g.permissionMode {
 		case ModeAny:
 			lines = append(lines, "any("+strings.Join(slugs, ", ")+")")
@@ -678,8 +679,7 @@ func permissionClaims(guards []Guard) []PermissionClaimDoc {
 		if len(g.permissions) == 0 {
 			continue
 		}
-		slugs := make([]string, len(g.permissions))
-		copy(slugs, g.permissions)
+		slugs := acl.Strings(g.permissions)
 		mode := string(g.permissionMode)
 		if mode == "" {
 			mode = string(ModeSingle)
